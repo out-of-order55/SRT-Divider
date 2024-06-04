@@ -28,12 +28,12 @@ SRT除法属于non-restoring除法的一种,我们正常使用算式计算除法
 **IDLE**:DIV初始状态,等待valid信号输入  
 **DIV_1**:除数为1,这时有些table商选择范围会超出QDS表,导致计算出错,故单独列一个状态计算除数为1的情况  
 **DIV_ERROR**:除数为0,拉高error信号  
-**DIV_PRE**:寄存除数被除数,得出到底该使用QDS表的哪个table
+**DIV_PRE**:寄存除数被除数,得出到底该使用QDS表的哪个table  
 **DIV_WORKING**:除法器运行状态,当div_cnt为0时结束运行,div_cnt的初始值即为迭代次数,对于SRT4来说,迭代次数为位宽的1/2  
 **DIV_END**:对得到的商和余数做后处理,查看余数正负性,生成ready信号  
 ## 仿真
 先生成正确的商和余数,然后等自己的除法器计算完成后进行对比,如果错误则停止仿真。
 ## 其他参考资料
 https://zhuanlan.zhihu.com/p/445439418<br>
-COMPUTER ARITHMETIC Algorithms and Hardware Designs:这本书介绍了许多高级的乘除法算法
+COMPUTER ARITHMETIC Algorithms and Hardware Designs:这本书介绍了许多高级的乘除法算法  
 Higher-Radix Division Using Estimates of the Divisor and Partial Remainders:对高基SRT算法的分析论文
