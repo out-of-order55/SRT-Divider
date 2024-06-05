@@ -1,18 +1,18 @@
 `timescale 1ns/1ps
 module tb_srt();
-parameter WID=8;
+parameter WID=64;
 reg            clk;
 reg            rst;
-wire[WID-1:0]  rem_ref;
-wire[WID-1:0]  q_ref;
+wire signed[WID-1:0]  rem_ref;
+wire signed[WID-1:0]  q_ref;
 wire[WID-1:0]  rem_d;
 wire[WID-1:0]  q_d;
-reg[WID-1:0]   dividend;
+reg signed[WID-1:0]   dividend;
 reg start;
-reg[WID-1:0]  divisor;
+reg signed[WID-1:0]  divisor;
 reg valid;
-parameter    MAX_NUM = 64'hff;
-parameter    MIN_NUM = 64'h7f;
+parameter    MAX_NUM = 64'hffffffffffffffff;
+parameter    MIN_NUM = 64'h7fffffffffffffff;
 
 initial begin
     clk <= 1'b0;
@@ -63,6 +63,7 @@ SRT4 #(
     .rst         (rst),
     .dividend    (dividend),
     .divisor     (divisor),
+    .sign        (1'b1),
     .valid       (valid),
     .ready       (ready),
     .quotient    (q_d),

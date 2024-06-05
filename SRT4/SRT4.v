@@ -5,6 +5,7 @@ module SRT4 #(
     rst         ,
     dividend    ,
     divisor     ,
+    sign        ,
     valid       ,
     ready       ,
     quotient    ,
@@ -15,34 +16,75 @@ input           clk;
 input           rst;
 input[WID-1:0]  dividend;
 input[WID-1:0]  divisor;
+input           sign;
 input           valid;
 output          error;
 output          ready; 
 output[WID-1:0]  quotient;
 output[WID-1:0]  remainder;
 
+
 wire [2*WID:0]  rem;//only use [2*WID:WID]
 reg             ready_o;
-wire[WID-1:0]     pos_1;
+wire[WID-1:0]   pos_1;
 wire[1:0]       q;
 wire            neg;
-reg[WID-1:0]      div_shift;
-reg             dividend_sign;
+reg[WID-1:0]    div_shift;
+reg[WID-1:0]    dividend_r;
+reg[WID-1:0]    divisor_r;
+reg[1:0]        div_sign;//{dividend,divisor}
+reg             sign_r;    
 wire[3:0]       qds_table;
+wire[WID-1:0]   dividend_u;
+wire[WID-1:0]   divisor_u;
+wire[WID:0]     shift_divisor_X2;
+wire[WID:0]     shift_divisor;
+wire[WID:0]     shift_divisor_X2n;
+wire[WID:0]     shift_divisor_n;
+
+reg[WID:0]      Q;
+reg[WID:0]      QM;  
+reg[2*WID:0]    shift_rem;
+reg[WID-1:0]    shift_dividend;
+reg[WID:0]      div_cnt;
+reg[WID:0]      fin_q;
+reg[WID:0]      fin_rem;
+wire[WID:0]     q_signed;
+wire[WID:0]     rem_signed;
+wire[WID:0]     q_unsigned;
+wire[WID:0]     rem_unsigned;
+reg[2:0]        state;
+
+assign dividend_u = sign&&dividend[WID-1]?(~dividend+1):dividend;
+assign divisor_u  = sign&&divisor[WID-1]?(~divisor+1):divisor;
 always @(posedge clk) begin
     if(rst)begin
-        dividend_sign <= 'b0;
+        sign_r <= 'b0;
     end
-    else if(valid)begin
-        dividend_sign <= dividend[WID-1];
+    else if(valid&&sign)begin
+        sign_r <= sign;
     end
 end
+always @(posedge clk) begin
+    if(rst)begin
+        dividend_r <= 'b0;
+        divisor_r  <= 'b0;
+        div_sign   <= 'b0;
+    end
+    else if(valid)begin
+        dividend_r <= dividend_u;
+        divisor_r  <= divisor_u;
+        div_sign   <= {dividend[WID-1],divisor[WID-1]};
+    end
+end
+
+
 find_1#
 (
     .WID(WID)
 )
 find_1(
-    .d_i     (divisor),
+    .d_i     (divisor_u),
     .pos_o   (pos_1)
 );
 q_sel #(
@@ -61,22 +103,10 @@ always @(posedge clk) begin
         div_shift <= pos_1+1;
     end
 end
-wire[WID:0]     shift_divisor_X2;
-wire[WID:0]     shift_divisor;
-wire[WID:0]     shift_divisor_X2n;
-wire[WID:0]     shift_divisor_n;
 
-reg[WID:0]      Q;
-reg[WID:0]      QM;  
-reg[2*WID:0]    shift_rem;
-reg[WID-1:0]    shift_dividend;
-reg[WID:0]      div_cnt;
-
-assign rem              = {{(WID+1){0}},dividend}<<div_shift;
-assign shift_divisor    = divisor<<div_shift;
+assign rem              = {{(WID+1){0}},dividend_r}<<div_shift;
 assign qds_table        = shift_divisor[WID-1:WID-4];
-
-
+assign shift_divisor    = divisor_r<<div_shift;
 assign shift_divisor_n  = (~shift_divisor)+1;
 assign shift_divisor_X2 = shift_divisor<<1;
 assign shift_divisor_X2n=(~shift_divisor_X2)+1; 
@@ -88,7 +118,7 @@ parameter       IDLE = 3'b000,
                 DIV_1   = 3'b100,
                 DIV_ERROR=3'b101;
 
-reg[2:0]    state;
+
 always @(posedge clk) begin
     if(rst)begin
         state <= IDLE;
@@ -172,8 +202,7 @@ always @(posedge clk) begin
 end
 
 ////////////////////////
-reg[WID:0]    fin_q;
-reg[WID:0]    fin_rem;
+
 always @(posedge clk) begin
     if(rst)begin
         fin_q   <= 'b0;
@@ -213,8 +242,13 @@ always @(posedge clk) begin
         ready_o <= 1'b0;
     end
 end
+assign  q_signed     = (div_sign==2'b11||div_sign==2'b00)?fin_q:(~fin_q+1);
+assign  rem_signed   = (div_sign[1]==1'b1)?(~(fin_rem>>div_shift)+1):(fin_rem>>div_shift);
+assign  q_unsigned   = fin_q;
+assign  rem_unsigned = fin_rem>>div_shift;
+
 assign  ready    = state==DIV_1?1'b1:ready_o;
-assign  quotient = state==DIV_1?dividend:fin_q;
-assign  remainder= state==DIV_1?1'b0:fin_rem>>div_shift;
+assign  quotient = state==DIV_1?dividend:(sign_r?q_signed:q_unsigned);
+assign  remainder= state==DIV_1?1'b0:(sign_r?rem_signed:rem_unsigned);
 assign  error    = state==DIV_ERROR;
 endmodule
